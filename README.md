@@ -1,8 +1,22 @@
-# 🚀 Joanium Skills
+# Joanium Skills
 
-> A massive, ever-expanding collection of powerful skills for builders, developers, creators, and AI agents.
+<p align="center">
+    <picture>
+        <source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/d238934d-b5cc-4a81-b081-eca743ef30ff">
+        <img src="https://github.com/user-attachments/assets/d238934d-b5cc-4a81-b081-eca743ef30ff" alt="Joanium" width="200">
+    </picture>
+</p>
 
-🌐 **Marketplace:** https://www.joanium.com/marketplace
+<p align="center">
+  <strong>Think once, Ship more</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/joanium/joanium/releases"><img src="https://img.shields.io/github/v/release/joanium/joanium?include_prereleases&style=for-the-badge" alt="GitHub release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
+</p>
+
+[Website](https://joanium.com) · [Docs](https://joanium.com/docs) · [Marketplace](https://joanium.com/marketplace)
 
 ---
 
