@@ -58,9 +58,9 @@ NITS (nice to have, don't block):
 # FEEDBACK FORMAT
 ```
 Use conventional review comments:
-  🚨 BLOCKER: This query is vulnerable to SQL injection. Use parameterized queries.
-  💡 SUGGEST: Consider extracting this logic into a separate function for reusability.
-  📝 NIT: Variable name `data` is vague — `userProfile` would be clearer.
+  BLOCKER: This query is vulnerable to SQL injection. Use parameterized queries.
+  SUGGEST: Consider extracting this logic into a separate function for reusability.
+  NIT: Variable name `data` is vague — `userProfile` would be clearer.
 
 Always pair criticism with:
   1. What the issue is
