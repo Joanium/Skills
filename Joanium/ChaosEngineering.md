@@ -1,342 +1,314 @@
 ---
 name: Chaos Engineering
-trigger: chaos engineering, fault injection, resilience testing, chaos monkey, game day, failure testing, Netflix chaos, simian army, resilience, blast radius, failure modes, disaster recovery test, chaos experiment
-description: A systematic approach to improving system resilience by deliberately injecting failures in controlled conditions. Use for designing chaos experiments, running game days, validating recovery procedures, and building confidence in system reliability before incidents happen.
+trigger: chaos engineering, fault injection, resilience testing, chaos monkey, Gremlin, Litmus, steady state, failure injection, kill process, network partition, latency injection, turbulence, chaos experiment, blast radius, gameday, failure modes, resilience
+description: Build confidence in distributed systems by deliberately injecting failures. Covers chaos experiment design, steady-state hypothesis, blast radius control, failure modes (network, CPU, disk, pod kill), tooling (Gremlin, Chaos Monkey, Litmus), and running GameDays.
 ---
 
-Chaos engineering is the discipline of experimenting on a system to build confidence in its ability to withstand turbulent conditions in production. The premise: unknown weaknesses in complex systems are unavoidable. The question is whether you discover them in a controlled experiment or during a real outage.
+# ROLE
+You are a chaos engineer and site reliability practitioner. You design and run controlled experiments to discover weaknesses in production systems before they cause incidents. You know that resilience untested is resilience assumed.
 
-> "The best time to practice disaster recovery is before you have a disaster." — Werner Vogels
-
-## Core Principles
-
+# CORE PRINCIPLES
 ```
-1. Define steady state first
-   You can't detect a deviation without knowing what normal looks like.
-   
-2. Hypothesize the system will maintain steady state
-   Chaos experiments test whether your hypothesis is correct.
-   
-3. Vary real-world events
-   CPU spikes, network partitions, dependency failures, traffic surges.
-   
-4. Run in production (eventually)
-   Staging doesn't have production traffic patterns, data volumes, or dependencies.
-   Start in staging; graduate to production canary.
-   
-5. Minimize blast radius
-   Always scope carefully. Start with the smallest possible failure domain.
+START WITH A HYPOTHESIS — define "normal" before breaking things
+MINIMIZE BLAST RADIUS — production chaos requires careful scoping
+AUTOMATE ROLLBACK — every experiment needs a kill switch
+GO SMALL TO LARGE — dev → staging → production canary → full production
+CHAOS ≠ RANDOM — principled, scientific, hypothesis-driven experiments
+OBSERVE EVERYTHING — chaos without observability is just outages
+STOP AT ABORT CONDITIONS — pre-define when you'll halt the experiment
 ```
 
-## The Chaos Experiment Framework
+# THE CHAOS ENGINEERING CYCLE
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  1. Define Steady State                                  │
-│     What does "working normally" look like, in numbers?  │
-├─────────────────────────────────────────────────────────┤
-│  2. Form Hypothesis                                      │
-│     "If X fails, the system will Y (degrade gracefully)" │
-├─────────────────────────────────────────────────────────┤
-│  3. Design Experiment                                    │
-│     What failure to inject? Scope? Duration? Rollback?   │
-├─────────────────────────────────────────────────────────┤
-│  4. Run Experiment                                       │
-│     Inject fault, observe metrics, halt if unexpected    │
-├─────────────────────────────────────────────────────────┤
-│  5. Analyze Results                                      │
-│     Did steady state hold? What happened? Why?           │
-├─────────────────────────────────────────────────────────┤
-│  6. Learn & Fix                                          │
-│     File issues, fix weaknesses, automate the experiment │
-└─────────────────────────────────────────────────────────┘
+1. DEFINE STEADY STATE
+   What does "healthy" look like in measurable terms?
+   → p99 latency < 200ms, error rate < 0.1%, order completion rate > 99.9%
+
+2. FORM A HYPOTHESIS
+   "If [failure] occurs, the system will maintain steady state because [mechanism]"
+   → "If the payment service has 30% packet loss, checkout will fall back to retry 
+     logic and maintain < 5% error rate"
+
+3. DESIGN THE EXPERIMENT
+   → What to break, where, for how long, at what magnitude
+   → What to measure
+   → What are the abort conditions
+
+4. RUN WITH ABORT CONTROLS
+   → Small blast radius first
+   → Automated rollback on abort conditions
+   → Real-time monitoring during experiment
+
+5. ANALYZE RESULTS
+   → Did steady state hold?
+   → If not: what failed, why, how to fix?
+   → If yes: did we have the right failure mode? Was blast radius too small?
+
+6. FIX AND REPEAT
+   → File bugs for discovered weaknesses
+   → Re-run after fixes to verify improvement
+   → Increase blast radius in next iteration
 ```
 
-## Phase 1: Define Steady State
+# FAILURE MODE LIBRARY
 
-Before any experiment, instrument what "healthy" means for your system.
+## Network Failures
+```yaml
+# Categories of network failures to inject:
 
-```python
-# Steady state: the measurable, observable state of a system operating normally
-# These become your abort conditions during experiments
+Latency:
+  description: Add delay to network packets
+  values: 50ms, 100ms, 500ms, 1000ms, 5000ms
+  scope: all traffic | specific service | specific endpoint
+  why: reveals timeout misconfiguration, missing circuit breakers
 
-steady_state = {
-    # Business metrics (most important — what users care about)
-    "checkout_success_rate":    {"min": 0.98,  "unit": "ratio"},
-    "api_error_rate":           {"max": 0.01,  "unit": "ratio"},
-    "api_p99_latency_ms":       {"max": 500,   "unit": "ms"},
-    
-    # Infrastructure metrics
-    "active_pod_count":         {"min": 3,     "unit": "count"},
-    "queue_depth":              {"max": 1000,  "unit": "messages"},
-    "db_connection_pool_usage": {"max": 0.80,  "unit": "ratio"},
-    
-    # Synthetic checks (canary transactions)
-    "synthetic_login_success":  {"min": 1.0,   "unit": "ratio"},
-}
+Packet Loss:
+  description: Drop percentage of packets
+  values: 1%, 5%, 10%, 30%, 100% (partition)
+  why: reveals retry logic gaps, idempotency issues
 
-# Automate steady state checking
-def check_steady_state(metrics: dict) -> tuple[bool, list[str]]:
-    violations = []
-    for key, threshold in steady_state.items():
-        value = metrics.get(key)
-        if value is None:
-            violations.append(f"Missing metric: {key}")
-            continue
-        if "min" in threshold and value < threshold["min"]:
-            violations.append(f"{key}: {value} < min {threshold['min']}")
-        if "max" in threshold and value > threshold["max"]:
-            violations.append(f"{key}: {value} > max {threshold['max']}")
-    return len(violations) == 0, violations
+Bandwidth Throttling:
+  description: Limit throughput
+  values: 1Mbps, 100Kbps
+  why: reveals large payload issues, streaming assumptions
+
+DNS Failure:
+  description: Poison or block DNS resolution
+  why: reveals hard-coded IPs vs service discovery
+
+Network Partition:
+  description: Isolate a node or AZ from the rest
+  why: tests split-brain handling, consensus correctness
 ```
 
-## Phase 2: Failure Mode Catalog
+## Resource Failures
+```yaml
+CPU Stress:
+  description: Consume N% of CPU on target hosts
+  values: 50%, 80%, 95%
+  why: reveals CPU-sensitive timeouts, noisy neighbor effects
 
-Understand what can fail before you inject failures.
+Memory Pressure:
+  description: Consume X GB of RAM
+  why: reveals OOM killer behavior, memory leak assumptions
 
-**Infrastructure failures:**
-```
-Category: Compute
-  - Pod/container crash (OOMKilled, crash loop)
-  - CPU throttling / saturation
-  - Node failure (EC2 termination, hardware fault)
-  - Deployment rollout (rolling update kills some pods)
+Disk I/O Stress:
+  description: Saturate disk reads/writes
+  why: reveals buffered write assumptions, log rotation issues
 
-Category: Network
-  - Latency injection (network packets delayed 100-500ms)
-  - Packet loss (1-5% of requests dropped)
-  - Network partition (service A cannot reach service B)
-  - DNS resolution failure
-  - TLS certificate expiry
-
-Category: Dependencies
-  - Database unreachable (connection refused)
-  - Database slow (query latency 10x normal)
-  - Cache miss storm (Redis restart → all cache cold)
-  - External API down (Stripe, Twilio, SendGrid)
-  - Message queue unavailable
-
-Category: Data
-  - Corrupt/malformed payload in queue
-  - Unexpected null fields in request
-  - Database disk full
-  - Schema mismatch (consumer of old schema receives new)
+Disk Full:
+  description: Fill disk to 90%/100%
+  why: reveals log rotation, temp file cleanup, error handling for ENOSPC
 ```
 
-## Phase 3: Design the Experiment
+## Process / Pod Failures
+```yaml
+Process Kill:
+  description: SIGKILL target process
+  scope: one instance | random instance | all instances
+  why: tests restart behavior, load balancer health checks, zero-downtime restart
 
-**Experiment template:**
-```markdown
-## Chaos Experiment: [Name]
+Container Kill (Kubernetes):
+  description: kubectl delete pod <random-pod>
+  why: tests pod restart policies, PodDisruptionBudgets
 
-### Hypothesis
-If [specific failure] occurs, [specific system component] will [specific degraded behavior]
-and steady state will be maintained for [metric] above [threshold].
+Node Failure:
+  description: Cordon + drain or hard-shutdown a node
+  why: tests pod rescheduling, persistent volume reattachment
 
-Example:
-"If the Redis cache cluster becomes unavailable, the checkout service will 
-fall back to database reads, adding ≤200ms latency, and checkout success 
-rate will remain above 95%."
-
-### Steady State Baseline
-Measured 1 hour before experiment:
-  - checkout_success_rate: 99.2%
-  - api_p99_latency_ms: 180ms
-  - error_rate: 0.3%
-
-### Failure to Inject
-Target: Redis ElastiCache cluster (staging environment)
-Method: AWS FIS: kill all Redis nodes simultaneously
-Duration: 10 minutes
-
-### Blast Radius
-Environment: Staging only
-Services affected: Checkout, Cart, Session services (all read from Redis)
-Users affected: None (staging)
-Estimated revenue impact: $0 (staging)
-
-### Rollback Plan
-Immediate: Restore Redis cluster from snapshot (3 min)
-If code issue found: Roll back app deployment (5 min)
-Abort condition: Checkout success rate drops below 85%
-
-### Observability
-Dashboards to watch: grafana.internal/d/checkout, grafana.internal/d/redis
-Alerts enabled: Yes (silenced for expected failures, active for unexpected)
-Who's watching: @platform-team in #chaos-experiment-YYYY-MM-DD
-
-### Expected Result
-System should fall back to DB reads within 1-2 seconds of Redis failure.
-Expect latency increase but no failures. Checkout success > 95%.
+Leader Kill:
+  description: Kill the elected leader of a stateful cluster
+  why: tests leader election, raft/paxos convergence time
 ```
 
-## Phase 4: Tooling
+## Dependency Failures
+```yaml
+Database Slowdown:
+  description: Add latency to all DB queries
+  why: reveals connection pool exhaustion, missing query timeouts
 
-**AWS Fault Injection Simulator (FIS):**
-```json
-{
-  "description": "Kill 50% of checkout service pods",
-  "actions": {
-    "StopEKSPods": {
-      "actionId": "aws:eks:terminate-nodegroup-instances",
-      "parameters": {
-        "instanceTerminationPercentage": "50"
-      },
-      "targets": {
-        "Nodegroups": "checkoutNodegroup"
-      }
-    }
-  },
-  "targets": {
-    "checkoutNodegroup": {
-      "resourceType": "aws:eks:nodegroup",
-      "resourceTags": { "Service": "checkout" },
-      "selectionMode": "PERCENT(50)"
-    }
-  },
-  "stopConditions": [{
-    "source": "aws:cloudwatch:alarm",
-    "value": "arn:aws:cloudwatch:...checkout-hard-failure-alarm"
-  }]
-}
+Database Outage:
+  description: Block all connections to primary DB
+  why: tests read replica fallback, graceful degradation
+
+Third-Party API Failure:
+  description: Return 503 or timeout for external API calls
+  why: tests circuit breakers, cache fallback, feature flags
+
+Queue Consumer Lag:
+  description: Stop queue consumers; let messages accumulate
+  why: reveals backpressure handling, consumer autoscaling
 ```
 
-**Chaos Toolkit (open source, language-agnostic):**
-```json
-{
-  "title": "Verify checkout survives cache failure",
-  "description": "Redis failure should not cause checkout errors",
-  "steady-state-hypothesis": {
-    "title": "Checkout operates normally",
-    "probes": [
-      {
-        "name": "checkout-success-rate",
-        "type": "probe",
-        "provider": {
-          "type": "http",
-          "url": "http://metrics.internal/api/v1/query",
-          "arguments": { "query": "checkout_success_rate > 0.95" }
-        },
-        "tolerance": true
-      }
-    ]
-  },
-  "method": [
-    {
-      "name": "kill-redis-pods",
-      "type": "action",
-      "provider": {
-        "type": "python",
-        "module": "chaosk8s.pod.actions",
-        "func": "kill_microservice",
-        "arguments": { "name": "redis", "ns": "staging" }
-      },
-      "pauses": { "after": 60 }
-    }
-  ],
-  "rollbacks": [
-    {
-      "name": "restart-redis",
-      "type": "action",
-      "provider": {
-        "type": "python",
-        "module": "chaosk8s.deployment.actions",
-        "func": "rollout_deployment",
-        "arguments": { "name": "redis", "ns": "staging" }
-      }
-    }
-  ]
-}
-```
+# EXPERIMENT TEMPLATES
 
-**Network fault injection (tc / toxiproxy):**
-```bash
-# Inject 200ms latency on a specific service (Linux tc)
-tc qdisc add dev eth0 root netem delay 200ms 50ms distribution normal
-
-# Add 5% packet loss
-tc qdisc change dev eth0 root netem loss 5%
-
-# Remove after experiment
-tc qdisc del dev eth0 root
-
-# Toxiproxy — proxy-based fault injection (better for controlled testing)
-# Adds named "toxics" to named proxies for specific upstream connections
-toxiproxy-cli toxic add -t latency -a latency=300 -a jitter=50 postgres-proxy
-toxiproxy-cli toxic remove --toxicName latency postgres-proxy
-```
-
-## Phase 5: Game Days
-
-A game day is a structured chaos experiment event with multiple teams participating.
-
-```
-Game Day Planning Template:
-
-1. Pre-game day (2 weeks before)
-   □ Define scenarios (2-4 failure scenarios)
-   □ Identify participants (platform, on-call, product manager)
-   □ Ensure runbooks exist for each scenario
-   □ Configure observability (dashboards, alerts ready)
-   □ Set up communication channel (#gameday-YYYY-MM-DD)
-
-2. Game day execution
-   □ Morning: confirm steady state, ensure no ongoing incidents
-   □ Brief all participants: objectives, timeline, abort criteria
-   □ Run scenario 1: inject failure → observe → record findings
-   □ 30 min break: discuss what we saw
-   □ Run scenario 2
-   □ Debrief: what failed to handle the fault well? What worked?
-
-3. Post-game day (within 1 week)
-   □ Write findings document
-   □ File tickets for each discovered weakness
-   □ Prioritize by likelihood × impact
-   □ Schedule next game day
-```
-
-## Chaos Maturity Model
-
-```
-Level 1: Manual experiments (where to start)
-  - Ad-hoc failure injection on staging
-  - Human observers watching dashboards
-  - Manual rollback
+## Template: Service Latency Injection
+```yaml
+experiment:
+  name: "payment-service-latency-degradation"
+  hypothesis: >
+    When payment-service P99 latency increases to 2s, checkout-service
+    will circuit-break and return a graceful fallback within 30s.
+    Error rate will not exceed 5%.
   
-Level 2: Semi-automated
-  - Tooling for fault injection (FIS, Chaos Toolkit)
-  - Automated steady-state checks (abort if threshold crossed)
-  - Quarterly game days
+  steady_state:
+    - metric: checkout.error_rate
+      threshold: "< 0.5%"
+      window: 5m
+    - metric: checkout.p99_latency_ms
+      threshold: "< 300"
+      window: 5m
   
-Level 3: Automated and continuous
-  - Chaos experiments run in CI/CD pipeline on every deployment
-  - Experiments run automatically against production canary
-  - Chaos coverage tracked like test coverage
+  abort_conditions:
+    - metric: checkout.error_rate
+      threshold: "> 10%"
+      action: immediate_rollback
+    - metric: revenue_per_minute
+      threshold: "< 50% of baseline"
+      action: immediate_rollback
   
-Level 4: Full production chaos (Netflix model)
-  - Chaos Monkey randomly terminates production instances daily
-  - Teams build services expecting random failure
-  - High operational maturity required before this level
+  blast_radius:
+    target: "payment-service"
+    scope: "5% of pods"         # canary chaos
+    environment: "production"
   
-Most teams should target Level 2-3. Level 4 requires years of investment.
+  method:
+    - type: network_latency
+      target: "payment-service pods"
+      latency_ms: 2000
+      jitter_ms: 500
+      duration: 10m
+  
+  rollback:
+    automatic: true
+    on_abort_condition: true
+  
+  monitoring:
+    dashboard: "https://grafana.internal/checkout-health"
+    alert_channel: "#chaos-experiments"
 ```
 
-## Safety Rules
-
+## Template: Pod Kill Chaos (Kubernetes)
+```yaml
+# Using Chaos Mesh (CNCF project)
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: payment-pod-kill
+  namespace: chaos-testing
+spec:
+  action: pod-kill
+  mode: random-max-percent   # kill up to N% of matching pods
+  value: "20"                # 20% of pods
+  selector:
+    namespaces:
+      - production
+    labelSelectors:
+      app: payment-service
+  scheduler:
+    cron: "@every 10m"       # repeat every 10 minutes
+  duration: "2m"             # each experiment lasts 2 minutes
 ```
-Before every experiment:
-  □ Is there an active incident? → Stop; run experiment later
-  □ Is this business-critical time (peak traffic, end-of-month close)? → Reschedule
-  □ Do you have a tested rollback procedure? → Required
-  □ Is monitoring healthy and dashboards populated? → Required
-  □ Is someone watching dashboards during the experiment? → Required
-  □ Has the experiment scope been reviewed by the on-call engineer? → Required
 
-Abort immediately if:
-  → Real user impact beyond expected parameters
-  → System does not recover after fault removal
-  → Cascading failure spreading beyond blast radius
-  → Any member of experiment team says "abort"
+## Template: Network Partition (Chaos Mesh)
+```yaml
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: partition-db-replica
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces: [production]
+    labelSelectors:
+      role: db-replica
+  direction: both
+  target:
+    mode: all
+    selector:
+      namespaces: [production]
+      labelSelectors:
+        role: db-primary
+  duration: "5m"
+```
 
-The courage to abort is more important than completing the experiment.
+# TOOLING COMPARISON
+```
+GREMLIN (commercial, SaaS):
+  → Best UX; UI-driven; agent-based
+  → Supports: CPU, memory, network, disk, process, time, state
+  → Automated blast radius controls
+  → Cost: $$$
+
+CHAOS MESH (open source, CNCF):
+  → Kubernetes-native; CRD-based experiments
+  → Supports: pod, network, I/O, clock skew, kernel, JVM
+  → Excellent for cloud-native workloads
+  → Cost: free
+
+LITMUS CHAOS (open source):
+  → Experiment library (ChaosHub)
+  → GitOps-friendly; CI/CD integration
+  → Strong community hub of experiments
+
+CHAOS MONKEY (Netflix, open source):
+  → Randomly terminates EC2 instances
+  → Spinnaker integration
+  → Best for: "we assume failures; prove it"
+
+TOXIPROXY (Shopify, open source):
+  → TCP proxy that injects network conditions
+  → Perfect for integration tests and staging
+  → Programmable via API
+
+PUMBA (open source, Docker):
+  → Docker container chaos
+  → Netem for network emulation
+  → Lightweight; good for dev environments
+```
+
+# GAMEDAY RUNBOOK
+```
+PRE-GAMEDAY (1 week before):
+[ ] Define scope: which system(s) are in-scope?
+[ ] Write hypothesis for each planned experiment
+[ ] Identify steady-state metrics and thresholds
+[ ] Define abort conditions and rollback procedures
+[ ] Notify on-call team and stakeholders
+[ ] Prepare monitoring dashboards
+[ ] Test rollback scripts in staging
+
+GAMEDAY DAY-OF:
+[ ] Brief all participants on scenarios and abort criteria
+[ ] Confirm on-call engineer has direct line to stop experiments
+[ ] Start recording (video/screen capture for documentation)
+[ ] Run pre-experiment steady-state check (confirm system is healthy)
+[ ] Run each experiment, one at a time, smallest blast radius first
+[ ] Document observations in real time
+[ ] After each experiment: restore, verify steady state before continuing
+
+POST-GAMEDAY:
+[ ] Complete incident-style write-up for each experiment
+[ ] File tickets for every weakness discovered
+[ ] Assign owners and timelines for each fix
+[ ] Schedule follow-up chaos run to verify fixes
+[ ] Share results in engineering all-hands (learning culture)
+```
+
+# BLAST RADIUS CONTROL MATRIX
+```
+RISK     ENV         SCOPE           MAGNITUDE    DURATION
+────────────────────────────────────────────────────────────
+Low      dev/staging  1 instance      small        unlimited
+Medium   staging      5–10% pods      moderate     30 min
+High     prod canary  1–5% pods       moderate     15 min
+Critical prod-wide    20–50% pods     moderate     5 min
+
+NEVER: 
+  100% of production without incremental validation
+  Experiments during peak traffic without approval
+  Chaos without monitoring in place
+  Experiments without documented rollback
 ```
