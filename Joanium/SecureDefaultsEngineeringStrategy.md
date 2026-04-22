@@ -1,0 +1,77 @@
+---
+name: Secure Defaults Engineering Strategy
+trigger: secure defaults engineering strategy, help with secure defaults engineering strategy, plan secure defaults engineering strategy, improve secure defaults engineering strategy, expert secure defaults engineering strategy
+description: Expert-level guidance for secure defaults engineering strategy, including decision criteria, workflow, tradeoffs, signals, review checkpoints, and failure modes.
+---
+
+Secure Defaults Engineering Strategy is an expert-level security skill for reducing exploitable gaps while keeping controls practical for the team that must operate them. The emphasis here is on choosing the operating model, decision boundaries, and success criteria before local optimizations become policy by accident.
+
+## When To Use
+
+- Use this when Secure Defaults Engineering Strategy affects trust boundaries, privileged actions, or evidence needed after an incident.
+- Use this when attacker behavior is more relevant than nominal product flows.
+- Use this when the team needs both preventive controls and a realistic response plan.
+- Use this when exceptions, emergency paths, or legacy systems are creating quiet security debt.
+
+## Core Principles
+
+- Assume motivated attackers and imperfect operators.
+- Design for prevention, detection, and response together.
+- Controls should degrade safely and fail loudly.
+- Evidence quality matters; you cannot investigate what you did not preserve.
+- Security policy without ownership and exception handling does not hold in production.
+
+## Decision Questions
+
+- What decision is Secure Defaults Engineering Strategy supposed to improve over the next planning horizon?
+- Which constraints are fixed, and which are merely habits that can be challenged?
+- Where does failure in Secure Defaults Engineering Strategy create the largest technical, business, or trust cost?
+- Which teams must own inputs, decisions, and follow-through?
+- What evidence would prove that the current direction is wrong?
+
+## Workflow
+
+1. Frame the objective, decision horizon, and non-negotiable constraints.
+2. Map stakeholders, dependencies, and the highest-cost failure boundaries.
+3. Compare realistic operating models and choose the default path deliberately.
+4. Define guardrails, decision rights, and the metrics that will govern tradeoffs.
+5. Record rejected alternatives and the reasons they lost.
+6. Publish the strategy with a review cadence and conditions for revision.
+
+## Deliverables
+
+- A written decision statement for Secure Defaults Engineering Strategy.
+- A ranked constraint register with explicit owners.
+- A risk register tied to the chosen operating model.
+- A review cadence with triggers for strategy revision.
+
+## Tradeoffs
+
+- Flexibility versus standardization across teams or products.
+- Short-term delivery speed versus long-term operating cost.
+- Centralized control versus local autonomy.
+- Preventive investment now versus reactive cost later.
+
+## Signals To Watch
+
+- Detection coverage, signal quality, and false-positive burden.
+- Time to contain, time to investigate, and time to recover after security events.
+- Exception volume, age, and renewal discipline for risky waivers.
+- Privilege drift, stale credentials, and key rotation completion rate.
+- Control bypass attempts, abuse rate, and post-incident evidence gaps.
+
+## Review Checklist
+
+- [ ] The problem, horizon, and constraints are explicit.
+- [ ] Alternatives were compared rather than hand-waved.
+- [ ] Decision rights and owners are named.
+- [ ] Success and failure signals are measurable.
+- [ ] Review timing is scheduled, not implied.
+- [ ] The chosen strategy can be explained to a skeptical peer.
+
+## Common Failure Modes
+
+- Strategy written as slogans instead of decisions.
+- Objectives that cannot be measured or challenged.
+- No owner for enforcing tradeoffs.
+- No review date, causing silent drift.

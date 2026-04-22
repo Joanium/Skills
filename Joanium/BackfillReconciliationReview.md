@@ -1,0 +1,77 @@
+---
+name: Backfill Reconciliation Review
+trigger: backfill reconciliation review, help with backfill reconciliation review, plan backfill reconciliation review, improve backfill reconciliation review, expert backfill reconciliation review
+description: Expert-level guidance for backfill reconciliation review, including decision criteria, workflow, tradeoffs, signals, review checkpoints, and failure modes.
+---
+
+Backfill Reconciliation Review is an expert-level data systems skill for turning analysis and pipelines into governed, trusted, and operationally stable assets. The emphasis here is challenging assumptions, proving readiness, and deciding whether the work is actually safe to adopt.
+
+## When To Use
+
+- Use this when Backfill Reconciliation Review affects downstream metrics, decisions, or customer-facing data products.
+- Use this when schemas, lineage, or quality expectations need to survive team and tool changes.
+- Use this when backfills, migrations, or new data products risk breaking shared definitions.
+- Use this when trust in the data is low and consumers need a stronger operating contract.
+
+## Core Principles
+
+- Shared definitions are more valuable than local convenience.
+- Every important metric needs lineage, ownership, and a validation story.
+- Model data around decisions and entities, not only source-system tables.
+- Backfills and migrations are product changes, not mere pipeline chores.
+- Trust is built by reconciling deltas, freshness, and semantic intent together.
+
+## Decision Questions
+
+- What claims about Backfill Reconciliation Review are supported by evidence, and which are still assertions?
+- Which risks are acknowledged but underweighted?
+- What readiness gates should block approval or expansion?
+- What burden will this place on operators, users, or adjacent teams?
+- What unresolved question would make the current proposal unsafe?
+
+## Workflow
+
+1. Collect the proposal, data, incidents, and prior decisions relevant to the review.
+2. Inspect assumptions, tradeoffs, and missing alternatives with a skeptical lens.
+3. Run explicit readiness gates for correctness, operability, and ownership.
+4. Separate blockers from suggestions so decisions can converge cleanly.
+5. Record the decision, dissent, and conditions for approval or rejection.
+6. Follow up on promised actions until the review outcome is actually satisfied.
+
+## Deliverables
+
+- A review summary for Backfill Reconciliation Review with clear approval status.
+- A blocker list separate from optional improvements.
+- A record of dissent, risk acceptance, or deferred questions.
+- An action tracker tied to the review decision.
+
+## Tradeoffs
+
+- Review depth versus decision speed.
+- Strict gating versus throughput and experimentation.
+- Broad reviewer input versus accountability clarity.
+- Theoretical completeness versus actionable decision quality.
+
+## Signals To Watch
+
+- Freshness, completeness, and reconciliation pass rate for critical datasets.
+- Metric drift versus source-of-truth calculations.
+- Schema change failure rate and downstream breakage count.
+- Adoption of certified definitions versus ad hoc forks.
+- Warehouse cost by workload, consumer, and retention tier.
+
+## Review Checklist
+
+- [ ] Evidence backs the key claims.
+- [ ] Blockers and suggestions are clearly separated.
+- [ ] Ownership exists for follow-up actions.
+- [ ] Approval conditions are explicit.
+- [ ] Risk acceptance is documented where needed.
+- [ ] The decision can be revisited on defined triggers.
+
+## Common Failure Modes
+
+- Reviews that generate comments but no decision.
+- Rubber-stamping because the right people were not engaged.
+- Blocking issues mixed with minor suggestions until nothing is clear.
+- Approval granted without ownership for follow-through.
